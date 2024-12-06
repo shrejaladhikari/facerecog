@@ -17,6 +17,7 @@ model = load_model("face_recognition_model1.h5")  # Replace with your model's fi
 # Attendance log file
 attendance_log = "attendance2.csv"
 
+
 # Preprocessing function
 def preprocess_image(img, target_size):
     """
@@ -26,6 +27,7 @@ def preprocess_image(img, target_size):
     img = img / 255.0  # Normalize the image
     img = np.expand_dims(img, axis=0)
     return img
+
 
 # Function to mark attendance
 def mark_attendance(name):
@@ -49,6 +51,7 @@ def mark_attendance(name):
     else:
         print(f"Attendance already marked for {name} today.")
 
+
 # Initialize webcam
 camera = cv2.VideoCapture(0)
 target_size = (100, 100)  # Adjust based on your model's input size
@@ -66,10 +69,20 @@ while True:
     # Convert frame to grayscale for face detection
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
-
+    # Optional: Test with a static image (debugging step)
+    img_path = "trainingimages/aastha/aastha1.jpg"  # Replace with your image file path
+    img = cv2.imread(img_path)
+    if img is not None:
+        preprocessed_img = preprocess_image(img, target_size=(100, 100))
+        result = model.predict(preprocessed_img)
+        confidence = np.max(result)
+        predicted_class = Result_class[np.argmax(result)]
+        print(f"Predicted Class (Static Image): {predicted_class}, Confidence: {confidence}")
+    else:
+        print("Static image file not found. Skipping static test.")
     for (x, y, w, h) in faces:
         # Extract the face from the frame
-        face = frame[y:y+h, x:x+w]
+        face = frame[y:y + h, x:x + w]
         preprocessed_face = preprocess_image(face, target_size)
 
         # Predict the class
@@ -79,12 +92,13 @@ while True:
         # Mark attendance for recognized faces
         if predicted_class != "unknown":  # Ensure only known faces are logged
             mark_attendance(predicted_class)
-            cv2.putText(frame, f"Detected: {predicted_class}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+            cv2.putText(frame, f"Detected: {predicted_class}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0),
+                        2)
         else:
             cv2.putText(frame, "Unknown", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
 
         # Draw a rectangle around the detected face
-        cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
 
     # Display the video frame
     cv2.imshow("Attendance System", frame)
