@@ -4,7 +4,7 @@ from tensorflow.keras.models import load_model
 import os
 
 # Load the trained model
-model = load_model("face_recognition_cnn_augmented.h5")
+model = load_model("attendance_model.h5")
 
 # Define categories (the names of the classes in your dataset)
 categories = ['shrejal', 'aastha', 'shristina', 'sresta']  # Update this list with your class names
