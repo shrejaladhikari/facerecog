@@ -4,12 +4,16 @@ from keras.preprocessing import image
 from keras.models import load_model
 import pandas as pd
 import datetime
+import pickle
+
+# Load the class mapping from ResultMap.pkl
+with open("ResultMap.pkl", "rb") as file:  # Replace with your file path
+    Result_class = pickle.load(file)
+print("Loaded Class Mapping:", Result_class)
 
 # Load your trained model
-model = load_model("face_recognition_model.h5")  # Replace with your model's file path
+model = load_model("face_recognition_model1.h5")  # Replace with your model's file path
 
-# Class mapping (as defined in your training process)
-Result_class = {0: 'aastha', 1: 'shrejal', 2: 'shristina', 3: 'sresta'}
 # Attendance log
 attendance_log = "attendance.csv"
 
@@ -19,7 +23,6 @@ def preprocess_image(img, target_size):
     img = img / 255.0  # Normalize if necessary
     img = np.expand_dims(img, axis=0)
     return img
-
 
 def mark_attendance(name):
     try:
@@ -36,7 +39,6 @@ def mark_attendance(name):
         df = pd.concat([df, new_row], ignore_index=True)
         df.to_csv(attendance_log, index=False)
         print(f"Attendance marked for {name} at {timestamp}")
-
 
 # Initialize webcam
 camera = cv2.VideoCapture(0)
