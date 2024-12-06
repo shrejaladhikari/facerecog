@@ -1,62 +1,70 @@
 import cv2
 import numpy as np
-from tensorflow.keras.models import load_model
-import os
+from keras.preprocessing import image
+from keras.models import load_model
+import pandas as pd
+import datetime
 
-# Load the trained model
-model = load_model("attendance_model.h5")
+# Load your trained model
+model = load_model("face_recognition_model.h5")  # Replace with your model's file path
 
-# Define categories (the names of the classes in your dataset)
-categories = ['shrejal', 'aastha', 'shristina', 'sresta']  # Update this list with your class names
+# Class mapping (as defined in your training process)
+Result_class = {0: 'aastha', 1: 'shrejal', 2: 'shristina', 3: 'sresta'}
+# Attendance log
+attendance_log = "attendance.csv"
 
-# Initialize face detector (Haar Cascade Classifier)
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+# Preprocessing function
+def preprocess_image(img, target_size):
+    img = cv2.resize(img, target_size)
+    img = img / 255.0  # Normalize if necessary
+    img = np.expand_dims(img, axis=0)
+    return img
 
-# Open webcam
-cap = cv2.VideoCapture(0)
+
+def mark_attendance(name):
+    try:
+        df = pd.read_csv(attendance_log)
+    except FileNotFoundError:
+        df = pd.DataFrame(columns=["Name", "Time"])
+
+    # Check if already marked for today
+    if not ((df["Name"] == name) & (df["Time"].str.contains(datetime.datetime.now().strftime("%Y-%m-%d")))).any():
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Create a new row as a DataFrame
+        new_row = pd.DataFrame({"Name": [name], "Time": [timestamp]})
+        # Use pd.concat to add the new row
+        df = pd.concat([df, new_row], ignore_index=True)
+        df.to_csv(attendance_log, index=False)
+        print(f"Attendance marked for {name} at {timestamp}")
+
+
+# Initialize webcam
+camera = cv2.VideoCapture(0)
+target_size = (100, 100)  # Adjust based on your model's input size
 
 while True:
-    # Read frame from webcam
-    ret, frame = cap.read()
-
-    # Convert frame to grayscale for face detection
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-    # Detect faces in the frame
-    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
-
-    # Loop through the detected faces
-    for (x, y, w, h) in faces:
-        # Draw rectangle around face
-        cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
-
-        # Extract the face from the frame
-        face = frame[y:y+h, x:x+w]
-
-        # Resize the face to match the input size of the model (128x128)
-        face_resized = cv2.resize(face, (128, 128))
-
-        # Normalize the image and expand dimensions for the model
-        face_normalized = face_resized / 255.0
-        face_expanded = np.expand_dims(face_normalized, axis=0)  # Add batch dimension
-
-        # Get model predictions
-        predictions = model.predict(face_expanded)
-        max_index = np.argmax(predictions[0])  # Get the class with highest probability
-
-        # Get the name of the predicted class
-        predicted_name = categories[max_index]
-
-        # Display the predicted name on the frame
-        cv2.putText(frame, predicted_name, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-
-    # Display the frame
-    cv2.imshow("Face Recognition", frame)
-
-    # Press 'q' to quit the webcam feed
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    ret, frame = camera.read()
+    if not ret:
         break
 
-# Release the webcam and close the windows
-cap.release()
+    # Detect and preprocess the face (simplistic approach: using entire frame)
+    face = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    preprocessed_face = preprocess_image(face, target_size)
+
+    # Predict the class
+    result = model.predict(preprocessed_face, verbose=0)
+    predicted_class = Result_class[np.argmax(result)]
+
+    # Mark attendance if a known face is recognized
+    if predicted_class != "unknown":  # Adjust based on your model
+        mark_attendance(predicted_class)
+
+    # Display the frame
+    cv2.putText(frame, f"Detected: {predicted_class}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+    cv2.imshow("Attendance System", frame)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):  # Press 'q' to exit
+        break
+
+camera.release()
 cv2.destroyAllWindows()
